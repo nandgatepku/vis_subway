@@ -1,0 +1,794 @@
+<!DOCTYPE html> 
+<html style="height: 100%"> 
+<head> 
+  <meta charset="utf-8"> 
+  <title>数据可视化-北京地铁</title>
+  <link rel="stylesheet" href="//code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
+  <script src="//code.jquery.com/jquery-1.9.1.js"></script>
+  <script src="//code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
+  <link rel="stylesheet" href="http://jqueryui.com/resources/demos/style.css">
+  <style type="text/css">
+    .huge{
+      position:relative;
+      width: 100%;
+      height: 100%;
+    }
+    .title{
+      font-size: 19px;
+      text-align: center;
+      position:absolute;
+      margin-top: 10px;
+      margin-left: 35%;
+      color: white;
+      z-index:20;
+    }
+    .author{
+      font-size: 16px;
+      text-align: right;
+      position:absolute;
+      margin-top: 30px;
+      color:white;
+      margin-left: 60%;
+      z-index:10;
+    }
+    .map{
+      height: 100%;
+      width: 100%;
+      position:absolute;
+      z-index:1;
+    }
+    .chart{
+      height: 70%;
+      width:40%;
+      position:absolute;
+      right: 5%;
+      margin-top: 70px;
+      z-index:5;
+    }
+    .station{
+      width: 20%;
+      margin-left: 5%;
+      position:absolute;
+      bottom: 10%;
+      color: white;
+      z-index:5;
+    }
+    .time{
+      width: 70%;
+      position:absolute;
+      bottom: 10%;
+      color: white;
+      z-index:5;
+      margin-left: 20%;
+    }
+    .play_button{
+       position:absolute;
+       bottom: 10%;
+       z-index: 5;
+       right: 15%;
+       width: 20px;
+       height: 20px;
+    }
+    .switch_span{
+       position:absolute;
+       bottom: 10%;
+       z-index: 5;
+       right: 8%;
+       width: 20px;
+       height: 20px;
+    }
+
+     .switch {
+            width: 40px;
+            height: 21px;
+            position: relative;
+            border: 1px solid #dfdfdf;
+            background-color: #eaf516;
+            box-shadow: #dfdfdf 0 0 0 0 inset;
+            border-radius: 20px;
+            background-clip: content-box;
+            display: inline-block;
+            -webkit-appearance: none;
+            user-select: none;
+            outline: none;
+        }
+        .switch:before {
+            content: '';
+            width: 20px;
+            height: 20px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            border-radius: 20px;
+            background-color: #fff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+        }
+        .switch:checked {
+            border-color: #64bd63;
+            box-shadow: #64bd63 0 0 0 16px inset;
+            background-color: #64bd63;
+        }
+        .switch:checked:before {
+            left: 20px;
+        }
+        .switch.switch-anim {
+            transition: border cubic-bezier(0, 0, 0, 1) 0.4s, box-shadow cubic-bezier(0, 0, 0, 1) 0.4s;
+        }
+        .switch.switch-anim:before {
+            transition: left 0.3s;
+        }
+        .switch.switch-anim:checked {
+            box-shadow: #64bd63 0 0 0 16px inset;
+            background-color: #64bd63;
+            transition: border ease 0.4s, box-shadow ease 0.4s, background-color ease 1.2s;
+        }
+        .switch.switch-anim:checked:before {
+            transition: left 0.3s;
+        }
+  </style>
+</head> 
+<body style="height: 100%; margin: 0">
+  <div id="title" class="title"><b>数据可视化期末展示-北京地铁</b></div>
+  <div id="title" class="author"><b>方正、林德鑫、唐驻成</b></div>
+  <span id="con">
+    <div id="bigmap" class="map"></div>
+    <div id="chart" class="chart"></div>
+  </span>
+  <div>
+      <div class="station">
+    <span style="">站点数据</span>
+    <select id="select_id" style="">
+         <option value='0' selected="selected">不显示</option>
+         <option value='1'>出站</option>
+         <option value='2'>进站</option>
+         <option value='3'>总和</option>
+    </select>
+  </div>
+
+    <div class="time">
+      <p style="text-align: center;">
+        <label for="amount">选择时间：</label>
+        <input type="text" id="amount" style="border:0; color:#f6931f; background-color:transparent;font-weight:bold;" readonly="readonly">
+      </p>
+      <div id="slider" style="width: 80%;margin-left: 5%"></div>
+    </div>
+
+    <div class="play_button">
+      <input type="button" style="width: 50px;" value="play" id="play"/>
+    </div>
+
+    <span class="switch_span"><input id="switch_key"  style="border:0;outline:none;" class="switch switch-anim" type="checkbox" onchange="switch_weekend(this)"></span>
+
+  </div>
+ 
+ <script type="text/javascript" src="http://echarts.baidu.com/gallery/vendors/echarts/echarts-all-3.js"></script> 
+ <script type="text/javascript" src="http://echarts.baidu.com/gallery/vendors/echarts/extension/dataTool.min.js"></script>
+ <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=ZUONbpqGBsYGXNIYHicvbAbM"></script> 
+ <script type="text/javascript" src="http://echarts.baidu.com/gallery/vendors/echarts/extension/bmap.min.js"></script> 
+ <script type="text/javascript">
+    var atom_data=[],atom_stop=[],atom_time=[],a_data=[],atom_start=[],line_name=[];
+    var subway_atom={},subway_lines={};
+    var subway_data=[];
+    var in_data=[],out_data=[];
+    var c_time=18,play_value=18;
+    var station_flag=0;
+    var switch_flag=false;
+    var play_flag=false;interval_flag = null;
+
+    // var atom_csv='atom_matlab.csv';
+
+    function switch_weekend(a){
+      // console.log('switch:'+a.checked);
+      switch_flag=a.checked;
+
+    }
+
+    function load_csv(atom_csv,in_csv,out_csv){
+
+    $.ajax({
+        type: "GET",
+        url: atom_csv,
+        dataType: "text",
+        async:false,
+        success: function(data) {
+    var dataStr = new String(data);
+    var lines = dataStr.split('\n');
+    for(var i=0;i<lines.length;i++){
+      a_data[i] = lines[i].split('"');
+      atom_data[i] = a_data[i][1];
+      if(atom_data[i] !=null){
+        atom_data[i] = atom_data[i].replace("[",""); 
+        atom_data[i] = atom_data[i].replace("]","");
+        atom_data[i] = atom_data[i].replace(/\s+/g,"");
+        atom_time[i] = atom_data[i].split(",");
+        atom_stop[i] = a_data[i][2];
+        atom_start[i] = atom_stop[i].split(",");
+        line_n = atom_start[i][7];
+        if(line_name.indexOf(line_n) == -1){
+          line_name.push(line_n);
+          subway_lines[line_n] = new Array(48).fill(0);
+        }
+        for(j=0;j<atom_time[i].length;j++){
+          subway_lines[line_n][j] += parseFloat(atom_time[i][j]);
+        }
+        
+    }
+    
+        }
+      }
+     });
+// console.log(subway_lines);
+// console.log("c_time="+c_time);
+
+  $.ajax({
+        type: "GET",
+        url: in_csv,
+        dataType: "text",
+        async:false,
+        success: function(data) {
+          var str_data = new String(data);
+          var in_lines = str_data.split('\n');
+          for(var i=0;i<in_lines.length;i++){
+            if(in_lines[i] !=''){
+              in_data[i] = in_lines[i].split(',');
+            }
+          
+          }
+        }
+     });
+
+    $.ajax({
+        type: "GET",
+        url: out_csv,
+        dataType: "text",
+        async:false,
+        success: function(data) {
+          var str_data = new String(data);
+          var out_lines = str_data.split('\n');
+          for(var i=0;i<out_lines.length;i++){
+            if(out_lines[i] !=''){
+              out_data[i] = out_lines[i].split(',');
+            }
+          
+          }
+        }
+     });
+
+    }
+
+
+  // console.log(in_data);
+
+   function up(x,y){
+        return x.data-y.data
+    };
+
+    function show_play(choose_time){
+        var clock = parseInt(choose_time/2);
+        var min_flag = Math.round(choose_time%2);
+        if(min_flag==0){
+          var min_str = '00';
+        }else{
+          var min_str = '30';
+        }
+        $( "#amount" ).val( clock + ":"+min_str );
+        c_time = choose_time;
+        show_map(c_time-1,station_flag);
+        show_chart(c_time-1);
+    }
+
+      var paly_function = function(){
+        if(play_value>47){
+          play_value=11
+        }else{
+          play_value++
+        };
+        console.log(play_value);
+        $("#slider").slider('option', 'value',play_value);
+        show_play(play_value);
+
+    };
+
+  function show_chart(time){
+    var line=[];
+    for (var key in subway_lines) {
+    var line_time = {};
+    line_time['name'] = key;
+    line_time['data'] = subway_lines[key][time];
+    key=key.replace(/(^\s*)|(\s*$)/g, ""); 
+    switch(key){
+      case 'Line1':line_time['color'] = '#A4343A';break;
+      case 'Line2':line_time['color'] = '#004B87';break;
+      case 'Line4':line_time['color'] = '#008C95';break;
+      case 'Line5':line_time['color'] = '#AA0061';break;
+      case 'Line6':line_time['color'] = '#B58500';break;
+      case 'Line7':line_time['color'] = '#FFC56E';break;
+      case 'Line8':line_time['color'] = '#009B77';break;
+      case 'Line9':line_time['color'] = '#97D700';break;
+      case 'Line10':line_time['color'] = '#0092BC';break;
+      case 'Line13':line_time['color'] = '#F4DA40';break;
+      case 'Line14':line_time['color'] = '#CA9A8E';break;
+      case 'Line15':line_time['color'] = '#653279';break;
+      case 'Line16':line_time['color'] = '#6BA539';break;
+      case 'BatongLine':line_time['color'] = '#A4343A';break;
+      case 'DaxingLine':line_time['color'] = '#008C95';break;
+      case 'YizhuangLine':line_time['color'] = '#D0006F';break;
+      case 'FangshanLine':line_time['color'] = '#D86018';break;
+      case 'FangshanLine':line_time['color'] = '#D86018';break;
+      case 'ChangpingLine':line_time['color'] = '#D986BA';break;
+      default:line_time['color'] ='#000000';break;
+    }
+    line.push(line_time);
+}
+line.sort(up);
+
+console.log(line);
+
+    var new_sort_axis = [],new_sort_data=[],new_sort_color=[];
+   for (var key in line) {
+    new_sort_axis.push(line[key]['name']);
+    new_sort_data.push(line[key]['data']);
+    new_sort_color.push(line[key]['color']);
+  
+}
+
+    var subway_chart = echarts.init(document.getElementById('chart'));
+
+option_chart = {
+    title: {
+//         text: '北京地铁各线路人流量',
+//         textStyle:{ 
+//            //字体粗细 'normal','bold','bolder','lighter',100 | 200 | 300 | 400...
+//         fontWeight:'normal',
+// 　　　　    fontSize:16
+//         }
+    },
+    tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+            type: 'shadow'
+        }
+    },
+    // legend: {
+    //     data: ['2011年', '2012年']
+    // },
+    grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        top:'1%',
+        containLabel: true
+    },
+    xAxis: {
+        type: 'value',
+        // boundaryGap: [0, 1]
+        axisLine:{
+            lineStyle:{
+                color:'#df0af8',
+                    }
+              },                         
+        axisLabel: {
+              textStyle: {
+                  color: '#21abfa',
+                  fontSize:'16'
+              },
+        },   
+    },
+    yAxis: {
+        type: 'category',
+        data: new_sort_axis,
+         axisLine:{
+            lineStyle:{
+                color:'#df0af8',
+                    }
+              },                         
+        axisLabel: {
+              textStyle: {
+                  color: '#21abfa',
+                  fontSize:'16'
+              },
+        },   
+    },
+    series: [
+        {
+            name: '',
+            type: 'bar',
+            data: new_sort_data,
+            itemStyle: {
+            normal: {
+                color: function(params) { 
+                    var colorList = new_sort_color; 
+                    return colorList[params.dataIndex] 
+                }
+            },
+        },
+        }
+    ]
+};
+ 
+ subway_chart.setOption(option_chart);
+  }
+
+
+function show_map(time,station_flag){
+var dom = document.getElementById("bigmap");
+var myChart = echarts.init(dom);
+var app = {};
+option = null;
+app.title = '数据可视化-北京地铁';
+
+   var subway_atom={};
+    var subway_data=[];
+
+for(i=0;i<atom_start.length;i++){
+  subway_atom={};
+  var start_point=[];
+  start_point.push(parseFloat(atom_start[i][2])); 
+  start_point.push(parseFloat(atom_start[i][3]));
+  var end_point=[];
+  end_point.push(parseFloat(atom_start[i][5])); 
+  end_point.push(parseFloat(atom_start[i][6]));
+  var coords = [];
+  coords.push(start_point);
+  coords.push(end_point);
+  subway_atom.coords=coords;
+
+  var subway_normal = {};
+  var subway_color = {};
+
+  color_data = atom_time[i][time];
+
+  var c_color = echarts.color.modifyHSL('#ff0000', 120-color_data/8000*120);
+  subway_color.color=c_color;
+  
+  subway_normal.normal = subway_color;
+
+  subway_atom.lineStyle=subway_normal;
+
+  subway_data.push(subway_atom);
+
+}
+
+     // console.log(subway_data);
+     var station_data=[];
+
+     switch(station_flag)
+     {
+      case '1':
+         for(k=0;k<in_data.length;k++){
+               var temp_data=[],temp_a={},st_color={},st_normal={};
+               temp_data[0]=in_data[k][2];
+               temp_data[1]=in_data[k][3];
+               temp_data[2]=parseFloat(in_data[k][time+4]);
+               temp_a.value=temp_data;
+               var temp_color = echarts.color.modifyHSL('#ff0000', 120-temp_data[2]/2000*120);
+               st_color.color=temp_color;
+               st_normal.normal = st_color;
+               temp_a.itemStyle=st_normal;
+               station_data.push(temp_a);
+         };
+         break;
+      case '2':
+         for(k=0;k<out_data.length;k++){
+               var temp_data=[],temp_a={},st_color={},st_normal={};
+               temp_data[0]=out_data[k][2];
+               temp_data[1]=out_data[k][3];
+               temp_data[2]=parseFloat(out_data[k][time+4]);
+               temp_a.value=temp_data;
+               var temp_color = echarts.color.modifyHSL('#ff0000', 120-temp_data[2]/2000*120);
+               st_color.color=temp_color;
+               st_normal.normal = st_color;
+               temp_a.itemStyle=st_normal;
+               station_data.push(temp_a);
+         };
+          break;
+      case '3':
+         for(k=0;k<in_data.length;k++){
+               var temp_data=[],temp_a={},st_color={},st_normal={};
+               temp_data[0]=in_data[k][2];
+               temp_data[1]=in_data[k][3];
+               temp_data[2]=parseFloat(in_data[k][time+4])+parseFloat(out_data[k][time+4]);
+               temp_a.value=temp_data;
+               var temp_color = echarts.color.modifyHSL('#ff0000', 120-temp_data[2]/4000*120);
+               st_color.color=temp_color;
+               st_normal.normal = st_color;
+               temp_a.itemStyle=st_normal;
+               station_data.push(temp_a);
+               console.log(temp_data[2]);
+         };
+          break;
+      default:
+      // station_data=[];
+       break;
+    }
+
+     console.log(station_data);
+
+
+    myChart.setOption(option = {
+        bmap: {
+            center: [116.90, 39.92],
+            zoom:10,
+            roam: true,
+            mapStyle: {
+              'styleJson': [
+               
+          {
+                    "featureType": "water",
+                    "elementType": "all",
+                    "stylers": {
+                              "color": "#021019"
+                    }
+          },
+          {
+                    "featureType": "highway",
+                    "elementType": "geometry.fill",
+                    "stylers": {
+                              "color": "#000000"
+                    }
+          },
+          {
+                    "featureType": "highway",
+                    "elementType": "geometry.stroke",
+                    "stylers": {
+                              "color": "#147a92",
+                              "lightness": -20
+                    }
+          },
+          {
+                    "featureType": "arterial",
+                    "elementType": "geometry.fill",
+                    "stylers": {
+                              "color": "#000000"
+                    }
+          },
+          {
+                    "featureType": "arterial",
+                    "elementType": "geometry.stroke",
+                    "stylers": {
+                              "color": "#0b3d51"
+                    }
+          },
+          {
+                    "featureType": "local",
+                    "elementType": "geometry",
+                    "stylers": {
+                              "color": "#000000"
+                    }
+          },
+          {
+                    "featureType": "land",
+                    "elementType": "all",
+                    "stylers": {
+                              "color": "#08304b"
+                    }
+          },
+          {
+                    "featureType": "railway",
+                    "elementType": "geometry.fill",
+                    "stylers": {
+                              "color": "#000000"
+                    }
+          },
+          {
+                    "featureType": "railway",
+                    "elementType": "geometry.stroke",
+                    "stylers": {
+                              "color": "#08304b"
+                    }
+          },
+          {
+                    "featureType": "subway",
+                    "elementType": "geometry",
+                    "stylers": {
+                              "lightness": -70,
+                              "visibility": "off"
+                    }
+          },
+          {
+                    "featureType": "building",
+                    "elementType": "geometry.fill",
+                    "stylers": {
+                              "color": "#000000"
+                    }
+          },
+          {
+                    "featureType": "all",
+                    "elementType": "labels.text.fill",
+                    "stylers": {
+                              "color": "#857f7f"
+                    }
+          },
+          {
+                    "featureType": "all",
+                    "elementType": "labels.text.stroke",
+                    "stylers": {
+                              "color": "#000000"
+                    }
+          },
+          {
+                    "featureType": "building",
+                    "elementType": "geometry",
+                    "stylers": {
+                              "color": "#022338"
+                    }
+          },
+          {
+                    "featureType": "green",
+                    "elementType": "geometry",
+                    "stylers": {
+                              "color": "#062032"
+                    }
+          },
+          {
+                    "featureType": "boundary",
+                    "elementType": "all",
+                    "stylers": {
+                              "color": "#1e1c1c"
+                    }
+          },
+          {
+                    "featureType": "manmade",
+                    "elementType": "geometry",
+                    "stylers": {
+                              "color": "#022338"
+                    }
+          },
+          {
+                    "featureType": "poi",
+                    "elementType": "all",
+                    "stylers": {
+                              "visibility": "off"
+                    }
+          },
+          {
+                    "featureType": "all",
+                    "elementType": "labels.icon",
+                    "stylers": {
+                              "visibility": "off"
+                    }
+          },
+          {
+                    "featureType": "all",
+                    "elementType": "labels.text.fill",
+                    "stylers": {
+                              "color": "#2da0c6",
+                              "visibility": "on"
+                    }
+          }
+
+              ]
+            }
+        },
+       series: [
+       {
+            type: 'lines',
+            coordinateSystem: 'bmap',
+            polyline: true,
+            data: subway_data,
+            silent: true,
+            lineStyle: {
+                normal: {
+                    // color: '#c23531',
+                    // color: 'rgb(200, 35, 45)',
+                    opacity: 0.3,
+
+                    width: 2
+                }
+            },
+            progressiveThreshold: 500,
+            progressive: 200
+        },
+         {
+            type: 'lines',
+            coordinateSystem: 'bmap',
+            polyline: true,
+            data: subway_data,
+            lineStyle: {
+                normal: {
+                    width: 0
+                }
+            },
+            effect: {
+                constantSpeed: 50,
+                show: true,
+                trailLength: 0.5,
+                symbolSize: 2
+            },
+            zlevel: 1
+        }, 
+        {
+            type: 'scatter',
+            coordinateSystem: 'bmap',
+            polyline: true,
+            data: station_data,
+            symbolSize: 6,
+        // 鼠标悬浮的时候在圆点上显示数值
+            label: {
+              normal: {
+                show: false
+              },
+              emphasis: {
+                show: true
+              }
+            },
+            // itemStyle: {
+            //   normal: {
+            //     color: '#ddb926'
+            //   }
+            // },
+          // 鼠标悬浮的时候圆点样式变化
+            emphasis: {
+              borderColor: '#fff',
+              borderWidth: 1
+            },
+            zlevel: 2
+        }]
+
+    });
+};
+
+// if (option && typeof option === "object") {
+//     myChart.setOption(option, true);
+// };
+
+</script>
+<script>
+  load_csv('atom_matlab.csv','in.csv','out.csv');
+  show_map(c_time-1,station_flag);
+  show_chart(c_time-1);
+
+  $(function() {
+
+
+    $( "#slider" ).slider({
+      value:play_value,
+      min: 1,
+      max: 48,
+      step: 1,
+      slide: function( event, ui ) {
+        var choose_time = ui.value;
+        play_value = ui.value;
+        show_play(choose_time);
+      }
+    });
+
+    $( "#amount" ).val( "9:00" );
+  });
+
+    $(document).ready(function(){
+        $("#select_id").change(function(){
+            station_flag=$(this).children('option:selected').val();
+            console.log(station_flag);
+            show_map(c_time-1,station_flag);
+        });
+
+        $("#switch_key").change(function(){
+            if(switch_flag){
+              load_csv('atom_matlab.csv','in.csv','out.csv');
+              // console.log('swflag:'+switch_flag);
+              show_map(c_time-1,station_flag);
+            }else{
+              load_csv('weekend_atom.csv','weekend_in.csv','weekend_out.csv');
+              // console.log('swflag:'+switch_flag);
+              show_map(c_time-1,station_flag);
+            }
+        });
+
+        $("#play").mouseup(function(){
+          play_flag=!play_flag;
+          if(play_flag){
+            $(this).css("background","yellow");
+            $(this).val('pause');
+            interval_flag = setInterval(paly_function,3000);
+          }else{
+            $(this).css("background","white");
+            $(this).val('play');
+            clearInterval(interval_flag);
+          }
+          
+        });
+    });
+  </script>
+</body> 
+</html>
